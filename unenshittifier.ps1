@@ -16,8 +16,8 @@ $tableLayoutPanel = New-Object System.Windows.Forms.TableLayoutPanel
 $tableLayoutPanel.Dock = [System.Windows.Forms.DockStyle]::Fill
 $tableLayoutPanel.ColumnCount = 2
 $tableLayoutPanel.RowCount = 2
-$tableLayoutPanel.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Percent, 70)))
-$tableLayoutPanel.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Percent, 30)))
+$tableLayoutPanel.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Percent, 60)))
+$tableLayoutPanel.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Percent, 40)))
 $tableLayoutPanel.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::AutoSize)))
 $tableLayoutPanel.RowStyles.Add((New-Object System.Windows.Forms.RowStyle([System.Windows.Forms.SizeType]::Percent, 100)))
 $form.Controls.Add($tableLayoutPanel)
@@ -95,11 +95,15 @@ function Filter-Packages {
     $filterText = $filterTextBox.Text.ToLower()
     $flowLayoutPanel.SuspendLayout()
     $flowLayoutPanel.Visible = $false
-    foreach ($checkbox in $flowLayoutPanel.Controls) {
-        if ($checkbox.Text.ToLower().Contains($filterText)) {
-            $checkbox.Visible = $true
-        } else {
-            $checkbox.Visible = $false
+    foreach ($control in $flowLayoutPanel.Controls) {
+        if ($control -is [System.Windows.Forms.Panel]) {
+            $checkbox = $control.Controls[0]
+            $label = $control.Controls[1]
+            if ($label.Text.ToLower().Contains($filterText)) {
+                $control.Visible = $true
+            } else {
+                $control.Visible = $false
+            }
         }
     }
     $flowLayoutPanel.ResumeLayout()
@@ -110,6 +114,13 @@ function Filter-Packages {
 function Log-Message($message) {
     $logTextBox.AppendText("$message`r`n")
     $logTextBox.ScrollToCaret()
+}
+
+# Function to open Google search for package name
+function Open-GoogleSearch($packageName) {
+    $searchUrl = "https://www.google.com/search?q=what+is+android+package+`"`"$packageName`"`""
+    Start-Process $searchUrl
+    Log-Message "Clicked: $packageName"
 }
 
 # Get the list of all packages and their installation status
@@ -124,16 +135,29 @@ if ($packages.Count -eq 0) {
     $flowLayoutPanel.Controls.Add($errorLabel)
     Log-Message "Error: No packages found. Make sure ADB is properly connected."
 } else {
-    # Create checkboxes for each package
+    # Create checkboxes and labels for each package
     foreach ($package in $packages.Keys | Sort-Object) {
+        $panel = New-Object System.Windows.Forms.Panel
+        $panel.AutoSize = $true
+        $panel.Dock = [System.Windows.Forms.DockStyle]::Top
+
         $checkbox = New-Object System.Windows.Forms.CheckBox
-        $checkbox.Text = $package
         $checkbox.AutoSize = $true
-        $checkbox.Dock = [System.Windows.Forms.DockStyle]::Top
-        $checkbox.Font = New-Object System.Drawing.Font("Arial", 10)
+        $checkbox.Location = New-Object System.Drawing.Point(0, 0)
         $checkbox.Checked = $packages[$package]  # Set checkbox state based on installation status
-        $checkbox.Add_Click({ Handle-CheckboxClick $this.Text $this.Checked })
-        $flowLayoutPanel.Controls.Add($checkbox)
+        $checkbox.Add_Click({ Handle-CheckboxClick $this.Parent.Controls[1].Text $this.Checked })
+
+        $label = New-Object System.Windows.Forms.Label
+        $label.Text = $package
+        $label.AutoSize = $true
+        $label.Location = New-Object System.Drawing.Point(20, 0)
+        $label.Font = New-Object System.Drawing.Font("Arial", 10)
+        $label.Cursor = [System.Windows.Forms.Cursors]::Hand
+        $label.Add_Click({ Open-GoogleSearch $this.Text })
+
+        $panel.Controls.Add($checkbox)
+        $panel.Controls.Add($label)
+        $flowLayoutPanel.Controls.Add($panel)
     }
     Log-Message "Packages loaded successfully."
 }
